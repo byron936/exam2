@@ -1,4 +1,5 @@
 #include <math.h>
+#include <iostream>
 #include "mbed.h"
 
 #include "mbed_rpc.h"
@@ -57,7 +58,8 @@ DigitalOut myled(LED1);
 DigitalIn mypin(USER_BUTTON);
 
 //int th_angle = 0;
-//double theta = -1;
+double theta1 = -1;
+double theta2 = -1;
 int flag = 0;
 bool flag2 = 0;
 int global_gesture_index = -1;
@@ -105,6 +107,7 @@ void close_mqtt()
 
 constexpr int kTensorArenaSize = 60 * 1024;
 uint8_t tensor_arena[kTensorArenaSize];
+
 // Return the result of the last prediction
 int PredictGesture(float *output)
 {
@@ -330,8 +333,15 @@ void thread_gesture()
         return -1;
     }
     error_reporter->Report("Set up successful...\n");
-    while (mypin == 1)
+    while (true)
     {
+        int16_t pDataXYZ1[3] = {0};
+        BSP_ACCELERO_AccGetXYZ(pDataXYZ1);
+        int x1 = pDataXYZ1[0];
+        int y1 = pDataXYZ1[1];
+        int z1 = pDataXYZ1[2];
+        //BSP_ACCELERO_AccGetXYZ(pDataXYZ1);
+        //theta1 = 180 / acos(-1) * asin(pDataXYZ1[0] / sqrt(pDataXYZ1[0] * pDataXYZ1[0] + pDataXYZ1[2] * pDataXYZ1[2]));
         // Attempt to read new data from the accelerometer
         got_data = ReadAccelerometer(error_reporter, model_input->data.f,
                                      input_length, should_clear_buffer);
@@ -355,6 +365,7 @@ void thread_gesture()
         // Clear the buffer next time we read data
         should_clear_buffer = gesture_index < label_num;
         // Produce an output
+        int16_t pDataXYZ2[3] = {0};
         if (gesture_index < label_num)
         {
             global_gesture_index = gesture_index;
@@ -362,8 +373,17 @@ void thread_gesture()
             error_reporter->Report(config.output_message[gesture_index]);
             uLCD.cls();
             uLCD.printf("\n%d\n", gesture_index);
+            int x2 = pDataXYZ2[0];
+            int y2 = pDataXYZ2[1];
+            int z2 = pDataXYZ2[2];
+            //printf("x1: %d, y1: %d, z1: %d\nx2: %d, y2: %d, z2: %d\n", x1, y1, z1, x2, y2, z2);
+            int change = x1 + y1 + z1 - x2 - y2 - z2;
+            printf("change: %d\n", change);
         }
         flag2 = 0;
+
+        //int16_t pDataXYZ[3] = {0};
+        //BSP_ACCELERO_AccGetXYZ(pDataXYZ);
     }
     myled = 0;
 }
