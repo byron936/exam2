@@ -46,8 +46,6 @@ Ticker flipper;
 
 void get_gesture(Arguments *in, Reply *out);
 void thread_gesture();
-void det_angle(Arguments *in, Reply *out);
-void thread_det_angle();
 
 BufferedSerial pc(USBTX, USBRX);
 RPCFunction rpc_gesture(&get_gesture, "get_gesture");
@@ -63,6 +61,7 @@ double theta2 = -1;
 int flag = 0;
 bool flag2 = 0;
 int global_gesture_index = -1;
+int change = 0;
 
 void messageArrived(MQTT::MessageData &md)
 {
@@ -79,16 +78,32 @@ void messageArrived(MQTT::MessageData &md)
 
 void publish_message(MQTT::Client<MQTTNetwork, Countdown> *client)
 {
-    if (flag2)
+    if (flag2 && flag < 10)
     {
         MQTT::Message message;
         char buff[100];
-        if (global_gesture_index == 0)
-            sprintf(buff, "ring");
-        else if (global_gesture_index == 1)
-            sprintf(buff, "slope");
-        else if (global_gesture_index == 2)
-            sprintf(buff, "line");
+        if (global_gesture_index == 0 && (change > 1000 || change < -1000))
+        {
+            sprintf(buff, "ring; change dramatically");
+            flag++;
+        }
+
+        else if (global_gesture_index == 1 && (change > 1000 || change < -1000))
+        {
+            sprintf(buff, "slope; change dramatically");
+            flag++;
+        }
+        else if (global_gesture_index == 2 && (change > 1000 || change < -1000))
+        {
+            sprintf(buff, "line; change dramatically");
+            flag++;
+        }
+        if (global_gesture_index == 0 && (change < 1000 && change > -1000))
+            sprintf(buff, "ring; change slightly");
+        else if (global_gesture_index == 1 && (change < 1000 && change > -1000))
+            sprintf(buff, "slope; change slightly");
+        else if (global_gesture_index == 2 && (change < 1000 && change > -1000))
+            sprintf(buff, "line; change slightly");
         message.qos = MQTT::QOS0;
         message.retained = false;
         message.dup = false;
@@ -260,11 +275,6 @@ void get_gesture(Arguments *in, Reply *out)
     t1.start(thread_gesture);
 }
 
-void det_angle(Arguments *in, Reply *out)
-{
-    t2.start(thread_det_angle);
-}
-
 void thread_gesture()
 {
     myled = 1;
@@ -333,7 +343,7 @@ void thread_gesture()
         return -1;
     }
     error_reporter->Report("Set up successful...\n");
-    while (true)
+    while (flag < 10)
     {
         int16_t pDataXYZ1[3] = {0};
         BSP_ACCELERO_AccGetXYZ(pDataXYZ1);
@@ -377,7 +387,7 @@ void thread_gesture()
             int y2 = pDataXYZ2[1];
             int z2 = pDataXYZ2[2];
             //printf("x1: %d, y1: %d, z1: %d\nx2: %d, y2: %d, z2: %d\n", x1, y1, z1, x2, y2, z2);
-            int change = x1 + y1 + z1 - x2 - y2 - z2;
+            change = x1 + y1 + z1 - x2 - y2 - z2;
             printf("change: %d\n", change);
         }
         flag2 = 0;
@@ -386,16 +396,4 @@ void thread_gesture()
         //BSP_ACCELERO_AccGetXYZ(pDataXYZ);
     }
     myled = 0;
-}
-
-void thread_det_angle()
-{
-    int16_t pDataXYZ[3] = {0};
-    while (flag < 5)
-    {
-        BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-        //theta = -180 / acos(-1) * asin(pDataXYZ[0] / sqrt(pDataXYZ[0] * pDataXYZ[0] + pDataXYZ[2] * pDataXYZ[2]));
-        //printf("angle: %lf\n", theta);
-        ThisThread::sleep_for(200ms);
-    }
 }
